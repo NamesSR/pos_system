@@ -39,10 +39,11 @@ fn main() {
 
   
   
-   let s = makelable();
-   println!("Result: {:?}", s);
+//    let s = makelable();
+//    println!("Result: {:?}", s);
     
-  
+ ReadCommand();
+ 
 }
 
 
@@ -70,7 +71,7 @@ fn ReadCommand()
             if args[0] == "pos"{
                  match  args[1] {
                     "help"  => print!("to many arguments"),
-                    "mklb"  => println!("mklb command"),
+                    "mklb"  => println!("to many arguments"),
                     "shlbl" => print!("to many arguments"),
                     "cocs"  => println!("cocs command"),
                     "cocd"  => println!("cocd command"),
@@ -83,7 +84,7 @@ fn ReadCommand()
             if args[0] == "pos"{
                  match  args[1] {
                     "help"  => help(commands),
-                    "mklb"  => println!("mklb command"),
+                    "mklb"  => MakeLable().expect("Failed to make label"),
                     "shlbl" => println!("shlbl command"),
                     "cocs"  => println!("cocs command"),
                     "cocd"  => println!("cocd command"),
@@ -119,7 +120,7 @@ let mut input = String::new();
     return input.trim().to_string(); 
 }
 
-fn readlineint()-> i32{
+fn readlineint32()-> i32{
    
      let num_value: i32 = match readlineString().parse::<i32>() 
        {
@@ -133,7 +134,21 @@ fn readlineint()-> i32{
   
      return num_value;
 }
-fn makelable() -> Result<()> {
+fn readlineint64()-> i64{
+   
+     let num_value: i64 = match readlineString().parse::<i64>() 
+       {
+          Ok(n) => n,
+          Err(e) => 
+           {
+              println!("{e}");
+              return 0;
+            }
+        };
+  
+     return num_value;
+}
+fn MakeLable() -> Result<()> {
     // create a new in-memory database
     let conn = Connection::open_in_memory()?;
 
@@ -151,13 +166,21 @@ fn makelable() -> Result<()> {
         )",
         (), // empty list of parameters.
     )?;
-
+     let s1 =  readlineString();
+     let s2 = match readlineString().as_str() {
+                "high" => BTWType::High,
+                "low" => BTWType::Low,
+                "none" => BTWType::None,
+                _ => BTWType::None, // Default case
+            };
+         let s3: i32 = readlineint32();
+         let s4: i64 = readlineint64();
     let me = Lables {
-        Productnum: 1,
-        PriceIncBTW: Amount::<EUR>::from_minor(999),
-        PriceExuBTW: Amount::<EUR>::from_minor(826),
-        Name: "cable".to_string(),
-        Btw: BTWType::High
+        Productnum: s3 as u32,
+        PriceIncBTW: Amount::<EUR>::from_minor(s4),
+        PriceExuBTW: calculateExcluBTW(Amount::<EUR>::from_minor(s4), s2),
+        Name: s1,
+        Btw: s2
     };
 
      let inc_cents: i64 = me.PriceIncBTW.to_minor().try_into().unwrap_or(0);
@@ -201,4 +224,12 @@ fn makelable() -> Result<()> {
     Ok(())
     
 
+}
+fn calculateExcluBTW(price: Amount<EUR>, btw: BTWType) -> Amount<EUR> {
+    let result = match btw {
+        BTWType::High => price / 121 * 100,
+        BTWType::Low => price / 109 * 100,
+        BTWType::None => price,
+    };
+    result.round(RoundingMode::HalfUp)
 }
