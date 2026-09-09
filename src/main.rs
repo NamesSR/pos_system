@@ -36,13 +36,11 @@ struct Lables{
 }
 
 fn main() {
-
   
-  
-//    let s = makelable();
-//    println!("Result: {:?}", s);
-    
- ReadCommand();
+    for  i in 1..4 {
+        
+        ReadCommand();
+    }
  
 }
 
@@ -52,7 +50,7 @@ fn ReadCommand()
     let commands = ["help","mklb","shlbl","cocs","cocd","addp"];
  let mut args: Vec<&str> = Vec::new();
  
-    let mut cmd = readlineString();
+    let cmd = readlineString();
     //let mut i = 1;
     for token in cmd.split_whitespace() {
         
@@ -85,7 +83,7 @@ fn ReadCommand()
                  match  args[1] {
                     "help"  => help(commands),
                     "mklb"  => MakeLable().expect("Failed to make label"),
-                    "shlbl" => println!("shlbl command"),
+                    "shlbl" => Showlbl().expect("there are no lables in the DataBase"),
                     "cocs"  => println!("cocs command"),
                     "cocd"  => println!("cocd command"),
                     "addp"  => println!("addp command"),
@@ -147,14 +145,124 @@ fn readlineint64()-> i64{
         };
   
      return num_value;
-}
-fn MakeLable() -> Result<()> {
+}fn Showlbl() -> Result<()>{
+    
     // create a new in-memory database
-    let conn = Connection::open_in_memory()?;
+    //let conn = Connection::open_in_memory()?;
+    
+    
+   
+    // create a new database file
+    let conn = Connection::open("pos_labels.db")?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS labels (
+            productnum INTEGER PRIMARY KEY,
+            priceincbtw INTEGER NOT NULL,
+            priceexbtw INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            btw TEXT NOT NULL
+        )",
+        (), // empty list of parameters.
+    )?;
+  
+    
+    
+
+    // create a new database file
+    
+
+        let mut stmt = conn.prepare("SELECT productnum, priceincbtw, priceexbtw, name, btw FROM labels")?;
+        // load lables from the database based on product number
+       // let mut stmt = conn.prepare(
+       //     "SELECT product_num, price_inc_btw_cents, price_ex_btw_cents, name, btw 
+       //      FROM labels WHERE product_num = ?0"
+       // )?;
+        let lables_iter = stmt.query_map([], |row| {
+            Ok(Lables {
+                Productnum: row.get(0)?,
+                PriceIncBTW: Amount::<EUR>::from_minor(row.get(1)?),
+                PriceExuBTW: Amount::<EUR>::from_minor(row.get(2)?),
+                Name: row.get(3)?,
+                Btw: match row.get::<_, String>(4)?.as_str() {
+                    "high" => BTWType::High,
+                    "low" => BTWType::Low,
+                    "none" => BTWType::None,
+                    _ => BTWType::None, // Default case
+                },
+            })
+        })?;
+    
+    
+       let mut found_any = false;
+        // show list of lables
+        for Lables in lables_iter {
+            if let Ok(found_lables) = Lables{
+                found_any = true;
+                println!("Found lable {:?}", found_lables);
+            }
+            
+        }
+        if !found_any{
+            println!("there are no labels in the database")
+        }
+
+    Ok(())
+    
+}
+fn AddProductToCheckOut() -> Result<()>{
+     // create a new in-memory database
+    //let conn = Connection::open_in_memory()?;
 
 
     // create a new database file
+      let conn = Connection::open("pos_labels.db")?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS labels (
+            productnum INTEGER PRIMARY KEY,
+            priceincbtw INTEGER NOT NULL,
+            priceexbtw INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            btw TEXT NOT NULL
+        )",
+        (), // empty list of parameters.
+    )?;
+  
+    
+   // load lables from the database based on product number
+       let mut stmt = conn.prepare(
+           "SELECT product_num, price_inc_btw_cents, price_ex_btw_cents, name, btw 
+            FROM labels WHERE product_num = ?0"
+       )?; 
+        
+        let mut lables_iter = stmt.query_map([], |row| {
+            Ok(Lables {
+                Productnum: row.get(0)?,
+                PriceIncBTW: Amount::<EUR>::from_minor(row.get(1)?),
+                PriceExuBTW: Amount::<EUR>::from_minor(row.get(2)?),
+                Name: row.get(3)?,
+                Btw: match row.get::<_, String>(4)?.as_str() {
+                    "high" => BTWType::High,
+                    "low" => BTWType::Low,
+                    "none" => BTWType::None,
+                    _ => BTWType::None, // Default case
+                },
+            })
+        })?;
+
+        Ok(())
+
+    // create a new database file
     //  let conn = Connection::open("pos_labels.db")?;
+}
+fn MakeLable() -> Result<()> {
+    // create a new in-memory database
+   // let conn = Connection::open_in_memory()?;
+
+
+    // create a new database file
+      let conn = Connection::open("pos_labels.db")?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS labels (
@@ -193,34 +301,7 @@ fn MakeLable() -> Result<()> {
     )?;
 
 
-    // load lables from the database based on product number
-    // let mut stmt = conn.prepare(
-    //     "SELECT product_num, price_inc_btw_cents, price_ex_btw_cents, name, btw 
-    //      FROM labels WHERE product_num = ?0"
-    // )?;
-
-
-    // load lables from the database
-    let mut stmt = conn.prepare("SELECT productnum, priceincbtw, priceexbtw, name, btw FROM labels")?;
-    let lables_iter = stmt.query_map([], |row| {
-        Ok(Lables {
-            Productnum: row.get(0)?,
-            PriceIncBTW: Amount::<EUR>::from_minor(row.get(1)?),
-            PriceExuBTW: Amount::<EUR>::from_minor(row.get(2)?),
-            Name: row.get(3)?,
-            Btw: match row.get::<_, String>(4)?.as_str() {
-                "high" => BTWType::High,
-                "low" => BTWType::Low,
-                "none" => BTWType::None,
-                _ => BTWType::None, // Default case
-            },
-        })
-    })?;
-
-    // show list of lables
-    for Lables in lables_iter {
-        println!("Found lable {:?}", Lables?);
-    }
+   
     Ok(())
     
 
